@@ -2,18 +2,26 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { salesApi, Sale } from "@/components/api/apiClient";
 import Icon from "@/components/ui/icon";
 import { toast } from "@/components/ui/use-toast";
+import { DataTable } from "@/components/ui/data-table";
+import { DataTableColumnHeader } from "@/components/ui/data-table";
+import { ColumnDef } from "@tanstack/react-table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const SalesPage = () => {
   const [sales, setSales] = useState<Sale[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -94,12 +102,95 @@ const SalesPage = () => {
     }).format(amount);
   };
 
-  // Фильтрация продаж по поисковому запросу
-  const filteredSales = sales.filter(sale => 
-    sale.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    sale.clientId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    sale.amount.toString().includes(searchQuery)
-  );
+  // Фильтрация продаж по статусу
+  const filteredSales = statusFilter 
+    ? sales.filter(sale => sale.status === statusFilter)
+    : sales;
+
+  const columns: ColumnDef<Sale>[] = [
+    {
+      accessorKey: "id",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="ID" />
+      ),
+      cell: ({ row }) => <div className="font-medium">{row.getValue("id")}</div>,
+    },
+    {
+      accessorKey: "clientId",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="ID клиента" />
+      ),
+    },
+    {
+      accessorKey: "amount",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Сумма" />
+      ),
+      cell: ({ row }) => formatCurrency(row.getValue("amount")),
+    },
+    {
+      accessorKey: "status",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Статус" />
+      ),
+      cell: ({ row }) => getStatusBadge(row.getValue("status")),
+      filterFn: (row, id, value) => {
+        return value.includes(row.getValue(id));
+      },
+    },
+    {
+      accessorKey: "date",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Дата" />
+      ),
+      cell: ({ row }) => new Date(row.getValue("date")).toLocaleDateString(),
+    },
+    {
+      accessorKey: "products",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Товары" />
+      ),
+      cell: ({ row }) => {
+        const products = row.original.products;
+        return <span>{products.length} товаров</span>;
+      },
+    },
+    {
+      id: "actions",
+      cell: ({ row }) => {
+        const sale = row.original;
+        
+        return (
+          <div className="flex justify-end space-x-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate(`/sales/${sale.id}/edit`)}
+            >
+              <Icon name="Pencil" className="h-4 w-4" />
+              <span className="sr-only">Редактировать</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate(`/sales/${sale.id}`)}
+            >
+              <Icon name="Eye" className="h-4 w-4" />
+              <span className="sr-only">Просмотреть</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handleDeleteSale(sale.id)}
+            >
+              <Icon name="Trash" className="h-4 w-4 text-destructive" />
+              <span className="sr-only">Удалить</span>
+            </Button>
+          </div>
+        );
+      },
+    },
+  ];
 
   return (
     <div className="space-y-4">
@@ -111,89 +202,38 @@ const SalesPage = () => {
         </Button>
       </div>
 
+      <div className="flex items-center gap-4">
+        <div className="flex items-center space-x-2">
+          <span className="text-sm font-medium">Статус:</span>
+          <Select
+            value={statusFilter}
+            onValueChange={setStatusFilter}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Все статусы" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Все статусы</SelectItem>
+              <SelectItem value="completed">Завершенные</SelectItem>
+              <SelectItem value="pending">В процессе</SelectItem>
+              <SelectItem value="canceled">Отмененные</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       <Card>
-        <CardHeader className="pb-3">
+        <CardHeader>
           <CardTitle>Список продаж</CardTitle>
-          <div className="flex items-center space-x-2 pt-2">
-            <div className="relative flex-1">
-              <Icon name="Search" className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Поиск продаж..."
-                className="pl-8 w-full"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-          </div>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Icon name="Loader2" className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>ID клиента</TableHead>
-                    <TableHead>Сумма</TableHead>
-                    <TableHead>Статус</TableHead>
-                    <TableHead>Дата</TableHead>
-                    <TableHead>Товары</TableHead>
-                    <TableHead className="text-right">Действия</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredSales.length > 0 ? (
-                    filteredSales.map((sale) => (
-                      <TableRow key={sale.id}>
-                        <TableCell className="font-medium">{sale.id}</TableCell>
-                        <TableCell>{sale.clientId}</TableCell>
-                        <TableCell>{formatCurrency(sale.amount)}</TableCell>
-                        <TableCell>{getStatusBadge(sale.status)}</TableCell>
-                        <TableCell>{new Date(sale.date).toLocaleDateString()}</TableCell>
-                        <TableCell>{sale.products.length} товаров</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end space-x-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => navigate(`/sales/${sale.id}/edit`)}
-                            >
-                              <Icon name="Pencil" className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => navigate(`/sales/${sale.id}`)}
-                            >
-                              <Icon name="Eye" className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteSale(sale.id)}
-                            >
-                              <Icon name="Trash" className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center">
-                        Продажи не найдены.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+          <DataTable
+            columns={columns}
+            data={filteredSales}
+            isLoading={isLoading}
+            searchColumn="id"
+            searchPlaceholder="Поиск по ID..."
+          />
         </CardContent>
       </Card>
     </div>
