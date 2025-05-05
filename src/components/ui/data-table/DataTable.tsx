@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -60,7 +60,7 @@ export function DataTable<T extends Record<string, any>>({
   const [pageSize, setPageSize] = useState(10);
   
   // Фильтрация данных по поисковому запросу
-  const filteredData = React.useMemo(() => {
+  const filteredData = useMemo(() => {
     if (!searchQuery || !searchColumn) return data;
     
     return data.filter(item => {
@@ -76,7 +76,7 @@ export function DataTable<T extends Record<string, any>>({
   }, [data, searchQuery, searchColumn]);
 
   // Сортировка данных
-  const sortedData = React.useMemo(() => {
+  const sortedData = useMemo(() => {
     if (!sortState) return filteredData;
     
     return [...filteredData].sort((a, b) => {
@@ -98,7 +98,7 @@ export function DataTable<T extends Record<string, any>>({
   }, [filteredData, sortState]);
 
   // Данные для текущей страницы
-  const paginatedData = React.useMemo(() => {
+  const paginatedData = useMemo(() => {
     if (!pagination) return sortedData;
     
     const start = page * pageSize;
@@ -228,7 +228,7 @@ export function DataTable<T extends Record<string, any>>({
                 onValueChange={(value) => setPageSize(Number(value))}
               >
                 <SelectTrigger className="h-8 w-[70px]">
-                  <SelectValue placeholder={pageSize} />
+                  <SelectValue placeholder={pageSize.toString()} />
                 </SelectTrigger>
                 <SelectContent side="top">
                   {[10, 20, 30, 50].map((size) => (
