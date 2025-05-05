@@ -7,9 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { clientsApi, Client } from "@/components/api/apiClient";
 import Icon from "@/components/ui/icon";
 import { toast } from "@/components/ui/use-toast";
-import { DataTable } from "@/components/ui/data-table";
-import { DataTableColumnHeader } from "@/components/ui/data-table";
-import { ColumnDef } from "@tanstack/react-table";
+import { DataTable, DataTableColumn } from "@/components/ui/data-table";
 import {
   Select,
   SelectContent,
@@ -99,83 +97,70 @@ const ClientsPage = () => {
     ? clients.filter(client => client.status === statusFilter)
     : clients;
 
-  const columns: ColumnDef<Client>[] = [
+  const columns: DataTableColumn<Client>[] = [
     {
-      accessorKey: "name",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Имя" />
-      ),
-      cell: ({ row }) => <div className="font-medium">{row.getValue("name")}</div>,
+      key: "name",
+      title: "Имя",
+      sortable: true,
+      render: (value) => <div className="font-medium">{value}</div>,
     },
     {
-      accessorKey: "company",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Компания" />
-      ),
+      key: "company",
+      title: "Компания",
+      sortable: true,
     },
     {
-      accessorKey: "email",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Email" />
-      ),
+      key: "email",
+      title: "Email",
+      sortable: true,
     },
     {
-      accessorKey: "phone",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Телефон" />
-      ),
+      key: "phone",
+      title: "Телефон",
     },
     {
-      accessorKey: "status",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Статус" />
-      ),
-      cell: ({ row }) => getStatusBadge(row.getValue("status")),
-      filterFn: (row, id, value) => {
-        return value.includes(row.getValue(id));
-      },
+      key: "status",
+      title: "Статус",
+      sortable: true,
+      render: (value) => getStatusBadge(value),
     },
     {
-      accessorKey: "createdAt",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Дата регистрации" />
-      ),
-      cell: ({ row }) => new Date(row.getValue("createdAt")).toLocaleDateString(),
+      key: "createdAt",
+      title: "Дата регистрации",
+      sortable: true,
+      render: (value) => new Date(value).toLocaleDateString()
     },
     {
-      id: "actions",
-      cell: ({ row }) => {
-        const client = row.original;
-        
-        return (
-          <div className="flex justify-end space-x-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate(`/clients/${client.id}/edit`)}
-            >
-              <Icon name="Pencil" className="h-4 w-4" />
-              <span className="sr-only">Редактировать</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate(`/clients/${client.id}`)}
-            >
-              <Icon name="Eye" className="h-4 w-4" />
-              <span className="sr-only">Просмотреть</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handleDeleteClient(client.id)}
-            >
-              <Icon name="Trash" className="h-4 w-4 text-destructive" />
-              <span className="sr-only">Удалить</span>
-            </Button>
-          </div>
-        );
-      },
+      key: "actions",
+      title: "Действия",
+      render: (_, client) => (
+        <div className="flex justify-end space-x-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(`/clients/${client.id}/edit`)}
+          >
+            <Icon name="Pencil" className="h-4 w-4" />
+            <span className="sr-only">Редактировать</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(`/clients/${client.id}`)}
+          >
+            <Icon name="Eye" className="h-4 w-4" />
+            <span className="sr-only">Просмотреть</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleDeleteClient(client.id)}
+          >
+            <Icon name="Trash" className="h-4 w-4 text-destructive" />
+            <span className="sr-only">Удалить</span>
+          </Button>
+        </div>
+      ),
     },
   ];
 

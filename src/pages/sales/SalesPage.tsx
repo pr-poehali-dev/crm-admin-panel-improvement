@@ -7,9 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { salesApi, Sale } from "@/components/api/apiClient";
 import Icon from "@/components/ui/icon";
 import { toast } from "@/components/ui/use-toast";
-import { DataTable } from "@/components/ui/data-table";
-import { DataTableColumnHeader } from "@/components/ui/data-table";
-import { ColumnDef } from "@tanstack/react-table";
+import { DataTable, DataTableColumn } from "@/components/ui/data-table";
 import {
   Select,
   SelectContent,
@@ -107,88 +105,72 @@ const SalesPage = () => {
     ? sales.filter(sale => sale.status === statusFilter)
     : sales;
 
-  const columns: ColumnDef<Sale>[] = [
+  const columns: DataTableColumn<Sale>[] = [
     {
-      accessorKey: "id",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="ID" />
-      ),
-      cell: ({ row }) => <div className="font-medium">{row.getValue("id")}</div>,
+      key: "id",
+      title: "ID",
+      sortable: true,
+      render: (value) => <div className="font-medium">{value}</div>,
     },
     {
-      accessorKey: "clientId",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="ID клиента" />
-      ),
+      key: "clientId",
+      title: "ID клиента",
+      sortable: true,
     },
     {
-      accessorKey: "amount",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Сумма" />
-      ),
-      cell: ({ row }) => formatCurrency(row.getValue("amount")),
+      key: "amount",
+      title: "Сумма",
+      sortable: true,
+      render: (value) => formatCurrency(value),
     },
     {
-      accessorKey: "status",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Статус" />
-      ),
-      cell: ({ row }) => getStatusBadge(row.getValue("status")),
-      filterFn: (row, id, value) => {
-        return value.includes(row.getValue(id));
-      },
+      key: "status",
+      title: "Статус",
+      sortable: true,
+      render: (value) => getStatusBadge(value),
     },
     {
-      accessorKey: "date",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Дата" />
-      ),
-      cell: ({ row }) => new Date(row.getValue("date")).toLocaleDateString(),
+      key: "date",
+      title: "Дата",
+      sortable: true,
+      render: (value) => new Date(value).toLocaleDateString(),
     },
     {
-      accessorKey: "products",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Товары" />
-      ),
-      cell: ({ row }) => {
-        const products = row.original.products;
-        return <span>{products.length} товаров</span>;
-      },
+      key: "products",
+      title: "Товары",
+      render: (value) => <span>{value.length} товаров</span>,
     },
     {
-      id: "actions",
-      cell: ({ row }) => {
-        const sale = row.original;
-        
-        return (
-          <div className="flex justify-end space-x-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate(`/sales/${sale.id}/edit`)}
-            >
-              <Icon name="Pencil" className="h-4 w-4" />
-              <span className="sr-only">Редактировать</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate(`/sales/${sale.id}`)}
-            >
-              <Icon name="Eye" className="h-4 w-4" />
-              <span className="sr-only">Просмотреть</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handleDeleteSale(sale.id)}
-            >
-              <Icon name="Trash" className="h-4 w-4 text-destructive" />
-              <span className="sr-only">Удалить</span>
-            </Button>
-          </div>
-        );
-      },
+      key: "actions",
+      title: "Действия",
+      render: (_, sale) => (
+        <div className="flex justify-end space-x-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(`/sales/${sale.id}/edit`)}
+          >
+            <Icon name="Pencil" className="h-4 w-4" />
+            <span className="sr-only">Редактировать</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(`/sales/${sale.id}`)}
+          >
+            <Icon name="Eye" className="h-4 w-4" />
+            <span className="sr-only">Просмотреть</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleDeleteSale(sale.id)}
+          >
+            <Icon name="Trash" className="h-4 w-4 text-destructive" />
+            <span className="sr-only">Удалить</span>
+          </Button>
+        </div>
+      ),
     },
   ];
 

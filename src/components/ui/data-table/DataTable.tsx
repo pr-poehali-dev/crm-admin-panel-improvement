@@ -1,17 +1,5 @@
 
-import {
-  ColumnDef,
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-  getPaginationRowModel,
-  SortingState,
-  getSortedRowModel,
-  ColumnFiltersState,
-  getFilteredRowModel,
-  VisibilityState,
-} from "@tanstack/react-table";
-
+import { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -20,117 +8,149 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useEffect, useState } from "react";
-import { DataTablePagination } from "./DataTablePagination";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Icon from "@/components/ui/icon";
 import { 
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[];
-  data: TData[];
+// Определяем типы для колонок и данных
+interface SortDirection {
+  column: string;
+  direction: "asc" | "desc";
+}
+
+export interface DataTableColumn<T> {
+  key: string;
+  title: string;
+  render?: (value: any, record: T) => React.ReactNode;
+  sortable?: boolean;
+}
+
+interface DataTableProps<T> {
+  columns: DataTableColumn<T>[];
+  data: T[];
   isLoading?: boolean;
+  searchable?: boolean;
   searchColumn?: string;
   searchPlaceholder?: string;
   pagination?: boolean;
-  manageColumns?: boolean;
 }
 
-export function DataTable<TData, TValue>({
+export function DataTable<T extends Record<string, any>>({
   columns,
   data,
   isLoading = false,
+  searchable = true,
   searchColumn,
   searchPlaceholder = "Поиск...",
   pagination = true,
-  manageColumns = true,
-}: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  const [rowSelection, setRowSelection] = useState({});
+}: DataTableProps<T>) {
+  // Состояния для поиска, сортировки и пагинации
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortState, setSortState] = useState<SortDirection | null>(null);
+  
+  // Пагинация
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  
+  // Фильтрация данных по поисковому запросу
+  const filteredData = React.useMemo(() => {
+    if (!searchQuery || !searchColumn) return data;
+    
+    return data.filter(item => {
+      const value = item[searchColumn];
+      if (typeof value === 'string') {
+        return value.toLowerCase().includes(searchQuery.toLowerCase());
+      }
+      if (typeof value === 'number') {
+        return value.toString().includes(searchQuery);
+      }
+      return false;
+    });
+  }, [data, searchQuery, searchColumn]);
 
-  const table = useReactTable({
-    data,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    onSortingChange: setSorting,
-    getSortedRowModel: getSortedRowModel(),
-    onColumnFiltersChange: setColumnFilters,
-    getFilteredRowModel: getFilteredRowModel(),
-    onColumnVisibilityChange: setColumnVisibility,
-    onRowSelectionChange: setRowSelection,
-    state: {
-      sorting,
-      columnFilters,
-      columnVisibility,
-      rowSelection,
-    },
-  });
+  // Сортировка данных
+  const sortedData = React.useMemo(() => {
+    if (!sortState) return filteredData;
+    
+    return [...filteredData].sort((a, b) => {
+      const valueA = a[sortState.column];
+      const valueB = b[sortState.column];
+      
+      if (valueA === valueB) return 0;
+      
+      let comparison = 0;
+      
+      if (typeof valueA === 'string' && typeof valueB === 'string') {
+        comparison = valueA.localeCompare(valueB);
+      } else {
+        comparison = valueA > valueB ? 1 : -1;
+      }
+      
+      return sortState.direction === 'asc' ? comparison : -comparison;
+    });
+  }, [filteredData, sortState]);
 
-  useEffect(() => {
-    if (pagination) {
-      table.setPageSize(10);
+  // Данные для текущей страницы
+  const paginatedData = React.useMemo(() => {
+    if (!pagination) return sortedData;
+    
+    const start = page * pageSize;
+    return sortedData.slice(start, start + pageSize);
+  }, [sortedData, page, pageSize, pagination]);
+
+  // Обработчик изменения сортировки
+  const handleSort = (column: string) => {
+    if (!sortState || sortState.column !== column) {
+      setSortState({ column, direction: 'asc' });
+    } else if (sortState.direction === 'asc') {
+      setSortState({ column, direction: 'desc' });
+    } else {
+      setSortState(null);
     }
-  }, [table, pagination]);
+  };
+
+  // Сброс страницы при изменении поискового запроса или размера страницы
+  useEffect(() => {
+    setPage(0);
+  }, [searchQuery, pageSize]);
+
+  // Получение иконки сортировки
+  const getSortIcon = (column: string) => {
+    if (!sortState || sortState.column !== column) {
+      return <Icon name="ArrowUpDown" className="ml-2 h-4 w-4" />;
+    }
+    return sortState.direction === 'asc' 
+      ? <Icon name="ArrowUp" className="ml-2 h-4 w-4" />
+      : <Icon name="ArrowDown" className="ml-2 h-4 w-4" />;
+  };
+
+  // Количество страниц
+  const pageCount = Math.ceil(sortedData.length / pageSize);
 
   return (
     <div className="space-y-4">
-      {/* Строка поиска и управления столбцами */}
-      {(searchColumn || manageColumns) && (
+      {/* Строка поиска */}
+      {searchable && searchColumn && (
         <div className="flex items-center justify-between">
-          {searchColumn && (
-            <div className="relative flex max-w-sm items-center">
-              <Icon
-                name="Search"
-                className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"
-              />
-              <Input
-                placeholder={searchPlaceholder}
-                value={(table.getColumn(searchColumn)?.getFilterValue() as string) ?? ""}
-                onChange={(event) =>
-                  table.getColumn(searchColumn)?.setFilterValue(event.target.value)
-                }
-                className="pl-8"
-              />
-            </div>
-          )}
-          {manageColumns && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="ml-auto">
-                  <Icon name="SlidersHorizontal" className="mr-2 h-4 w-4" />
-                  Колонки
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {table
-                  .getAllColumns()
-                  .filter((column) => column.getCanHide())
-                  .map((column) => {
-                    return (
-                      <DropdownMenuCheckboxItem
-                        key={column.id}
-                        className="capitalize"
-                        checked={column.getIsVisible()}
-                        onCheckedChange={(value) =>
-                          column.toggleVisibility(!!value)
-                        }
-                      >
-                        {column.id}
-                      </DropdownMenuCheckboxItem>
-                    )
-                  })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          <div className="relative flex max-w-sm items-center">
+            <Icon
+              name="Search"
+              className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"
+            />
+            <Input
+              placeholder={searchPlaceholder}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8"
+            />
+          </div>
         </div>
       )}
 
@@ -138,22 +158,23 @@ export function DataTable<TData, TValue>({
       <div className="rounded-md border">
         <Table>
           <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  return (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </TableHead>
-                  )
-                })}
-              </TableRow>
-            ))}
+            <TableRow>
+              {columns.map((column) => (
+                <TableHead key={column.key}>
+                  {column.sortable ? (
+                    <button
+                      className="flex items-center font-medium text-left"
+                      onClick={() => handleSort(column.key)}
+                    >
+                      {column.title}
+                      {getSortIcon(column.key)}
+                    </button>
+                  ) : (
+                    column.title
+                  )}
+                </TableHead>
+              ))}
+            </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
@@ -167,15 +188,14 @@ export function DataTable<TData, TValue>({
                   </div>
                 </TableCell>
               </TableRow>
-            ) : table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+            ) : paginatedData.length > 0 ? (
+              paginatedData.map((row, rowIndex) => (
+                <TableRow key={rowIndex}>
+                  {columns.map((column) => (
+                    <TableCell key={`${rowIndex}-${column.key}`}>
+                      {column.render 
+                        ? column.render(row[column.key], row)
+                        : row[column.key]}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -195,8 +215,73 @@ export function DataTable<TData, TValue>({
       </div>
 
       {/* Пагинация */}
-      {pagination && data.length > 0 && (
-        <DataTablePagination table={table} />
+      {pagination && sortedData.length > 0 && (
+        <div className="flex items-center justify-between px-2">
+          <div className="flex-1 text-sm text-muted-foreground">
+            Показано {paginatedData.length} из {sortedData.length} записей
+          </div>
+          <div className="flex items-center space-x-6 lg:space-x-8">
+            <div className="flex items-center space-x-2">
+              <p className="text-sm font-medium">Записей на странице</p>
+              <Select
+                value={pageSize.toString()}
+                onValueChange={(value) => setPageSize(Number(value))}
+              >
+                <SelectTrigger className="h-8 w-[70px]">
+                  <SelectValue placeholder={pageSize} />
+                </SelectTrigger>
+                <SelectContent side="top">
+                  {[10, 20, 30, 50].map((size) => (
+                    <SelectItem key={size} value={size.toString()}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+              Страница {page + 1} из {pageCount || 1}
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                className="hidden h-8 w-8 p-0 lg:flex"
+                onClick={() => setPage(0)}
+                disabled={page === 0}
+              >
+                <span className="sr-only">На первую страницу</span>
+                <Icon name="ChevronsLeft" className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                className="h-8 w-8 p-0"
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                disabled={page === 0}
+              >
+                <span className="sr-only">На предыдущую страницу</span>
+                <Icon name="ChevronLeft" className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                className="h-8 w-8 p-0"
+                onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}
+                disabled={page === pageCount - 1 || pageCount === 0}
+              >
+                <span className="sr-only">На следующую страницу</span>
+                <Icon name="ChevronRight" className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                className="hidden h-8 w-8 p-0 lg:flex"
+                onClick={() => setPage(pageCount - 1)}
+                disabled={page === pageCount - 1 || pageCount === 0}
+              >
+                <span className="sr-only">На последнюю страницу</span>
+                <Icon name="ChevronsRight" className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

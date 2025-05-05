@@ -7,9 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { tasksApi, Task } from "@/components/api/apiClient";
 import Icon from "@/components/ui/icon";
 import { toast } from "@/components/ui/use-toast";
-import { DataTable } from "@/components/ui/data-table";
-import { DataTable as ReactTable, DataTableColumnHeader } from "@/components/ui/data-table";
-import { ColumnDef } from "@tanstack/react-table";
+import { DataTable, DataTableColumn } from "@/components/ui/data-table";
 import {
   Select,
   SelectContent,
@@ -121,15 +119,6 @@ const TasksPage = () => {
     }
   };
 
-  const getStatusName = (status: Task['status']) => {
-    switch (status) {
-      case 'todo': return 'К выполнению';
-      case 'in_progress': return 'В процессе';
-      case 'done': return 'Завершена';
-      default: return status;
-    }
-  };
-
   const getPriorityBadge = (priority: Task['priority']) => {
     switch (priority) {
       case 'low':
@@ -150,98 +139,81 @@ const TasksPage = () => {
     return matchesStatus && matchesPriority;
   });
 
-  const columns: ColumnDef<Task>[] = [
+  const columns: DataTableColumn<Task>[] = [
     {
-      accessorKey: "title",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Название" />
-      ),
-      cell: ({ row }) => <div className="font-medium">{row.getValue("title")}</div>,
+      key: "title",
+      title: "Название",
+      sortable: true,
+      render: (value) => <div className="font-medium">{value}</div>,
     },
     {
-      accessorKey: "status",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Статус" />
+      key: "status",
+      title: "Статус",
+      sortable: true,
+      render: (value, task) => (
+        <Select
+          value={value}
+          onValueChange={(newValue) => handleStatusChange(task.id, newValue as Task['status'])}
+        >
+          <SelectTrigger className="h-8 w-[180px]">
+            <SelectValue>{getStatusBadge(value)}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todo">К выполнению</SelectItem>
+            <SelectItem value="in_progress">В процессе</SelectItem>
+            <SelectItem value="done">Завершена</SelectItem>
+          </SelectContent>
+        </Select>
       ),
-      cell: ({ row }) => {
-        const task = row.original;
-        return (
-          <Select
-            value={task.status}
-            onValueChange={(value) => handleStatusChange(task.id, value as Task['status'])}
+    },
+    {
+      key: "priority",
+      title: "Приоритет",
+      sortable: true,
+      render: (value) => getPriorityBadge(value),
+    },
+    {
+      key: "dueDate",
+      title: "Срок выполнения",
+      sortable: true,
+      render: (value) => new Date(value).toLocaleDateString(),
+    },
+    {
+      key: "assignedTo",
+      title: "Ответственный",
+      sortable: true,
+    },
+    {
+      key: "actions",
+      title: "Действия",
+      render: (_, task) => (
+        <div className="flex justify-end space-x-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(`/tasks/${task.id}/edit`)}
           >
-            <SelectTrigger className="h-8 w-[180px]">
-              <SelectValue>{getStatusBadge(task.status)}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todo">К выполнению</SelectItem>
-              <SelectItem value="in_progress">В процессе</SelectItem>
-              <SelectItem value="done">Завершена</SelectItem>
-            </SelectContent>
-          </Select>
-        );
-      },
-      filterFn: (row, id, value) => {
-        return value.includes(row.getValue(id));
-      },
-    },
-    {
-      accessorKey: "priority",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Приоритет" />
+            <Icon name="Pencil" className="h-4 w-4" />
+            <span className="sr-only">Редактировать</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(`/tasks/${task.id}`)}
+          >
+            <Icon name="Eye" className="h-4 w-4" />
+            <span className="sr-only">Просмотреть</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleDeleteTask(task.id)}
+          >
+            <Icon name="Trash" className="h-4 w-4 text-destructive" />
+            <span className="sr-only">Удалить</span>
+          </Button>
+        </div>
       ),
-      cell: ({ row }) => getPriorityBadge(row.getValue("priority")),
-      filterFn: (row, id, value) => {
-        return value.includes(row.getValue(id));
-      },
-    },
-    {
-      accessorKey: "dueDate",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Срок выполнения" />
-      ),
-      cell: ({ row }) => new Date(row.getValue("dueDate")).toLocaleDateString(),
-    },
-    {
-      accessorKey: "assignedTo",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Ответственный" />
-      ),
-    },
-    {
-      id: "actions",
-      cell: ({ row }) => {
-        const task = row.original;
-        
-        return (
-          <div className="flex justify-end space-x-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate(`/tasks/${task.id}/edit`)}
-            >
-              <Icon name="Pencil" className="h-4 w-4" />
-              <span className="sr-only">Редактировать</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate(`/tasks/${task.id}`)}
-            >
-              <Icon name="Eye" className="h-4 w-4" />
-              <span className="sr-only">Просмотреть</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handleDeleteTask(task.id)}
-            >
-              <Icon name="Trash" className="h-4 w-4 text-destructive" />
-              <span className="sr-only">Удалить</span>
-            </Button>
-          </div>
-        );
-      },
     },
   ];
 
